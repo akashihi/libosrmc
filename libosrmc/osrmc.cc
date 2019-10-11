@@ -14,6 +14,7 @@
 #include <osrm/match_parameters.hpp>
 #include <osrm/status.hpp>
 #include <osrm/storage_config.hpp>
+#include <osrm/engine/api/base_result.hpp>
 
 #include "osrmc.h"
 
@@ -140,7 +141,9 @@ osrmc_route_response_t osrmc_route(osrmc_osrm_t osrm, osrmc_route_params_t param
   auto* params_typed = reinterpret_cast<osrm::RouteParameters*>(params);
 
   auto* out = new osrm::json::Object;
-  const auto status = osrm_typed->Route(*params_typed, *out);
+  auto result = osrm::engine::api::ResultT(std::move(*out));
+  const auto status = osrm_typed->Route(*params_typed, result);
+  *out = std::move(result.get<osrm::json::Object>());
 
   if (status == osrm::Status::Ok)
     return reinterpret_cast<osrmc_route_response_t>(out);
@@ -157,15 +160,16 @@ void osrmc_route_with(osrmc_osrm_t osrm, osrmc_route_params_t params, osrmc_wayp
   auto* osrm_typed = reinterpret_cast<osrm::OSRM*>(osrm);
   auto* params_typed = reinterpret_cast<osrm::RouteParameters*>(params);
 
-  osrm::json::Object result;
+  auto result = osrm::engine::api::ResultT();
   const auto status = osrm_typed->Route(*params_typed, result);
+  auto out = result.get<osrm::json::Object>();
 
   if (status != osrm::Status::Ok) {
-    osrmc_error_from_json(result, error);
+    osrmc_error_from_json(out, error);
     return;
   }
 
-  const auto& waypoints = result.values.at("waypoints").get<osrm::json::Array>().values;
+  const auto& waypoints = out.values.at("waypoints").get<osrm::json::Array>().values;
 
   for (const auto& waypoint : waypoints) {
     const auto& waypoint_typed = waypoint.get<osrm::json::Object>();
@@ -275,7 +279,9 @@ osrmc_table_response_t osrmc_table(osrmc_osrm_t osrm, osrmc_table_params_t param
   auto* params_typed = reinterpret_cast<osrm::TableParameters*>(params);
 
   auto* out = new osrm::json::Object;
-  const auto status = osrm_typed->Table(*params_typed, *out);
+  auto result = osrm::engine::api::ResultT(std::move(*out));
+  const auto status = osrm_typed->Table(*params_typed, result);
+  *out = std::move(result.get<osrm::json::Object>());
 
   if (status == osrm::Status::Ok)
     return reinterpret_cast<osrmc_table_response_t>(out);
